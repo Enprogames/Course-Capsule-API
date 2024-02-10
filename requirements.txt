@@ -1,0 +1,7 @@
+alembic
+fastapi
+passlib
+python-jose[cryptography]
+python-multipart
+sqlmodel
+uvicorn

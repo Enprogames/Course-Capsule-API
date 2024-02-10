@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="img/icon.png" type="image/x-icon">
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+
+    <title>Simple web request</title>
+</head>
+<body>
+    <div id="login_page">
+        <h1>Login</h1>
+        <br>
+        <form method="post" id="login_request">
+            <input type="text" name="username" placeholder="username"><br>
+            <input type="password" name="password" placeholder="password"><br>
+            <button type="submit">Submit</button>
+        </form>
+
+        <br>
+
+        <h1>Register</h1>
+        <form method="post" id="register_request">
+            <input type="text" name="email" placeholder="email"><br>
+            <input type="text" name="username" placeholder="username"><br>
+            <input type="password" name="password" placeholder="password"><br>
+            <button type="submit">Register</button>
+        </form>
+    </div>
+
+    <div id="posts_page" style="display:none;">
+        <h1>Posts</h1>
+        <h2 id="username_message"></h2>
+        <h2 id="email_message"></h2>
+        <h2 id="role_message"></h2>
+        <div id="posts"></div>
+        <form method="post" id="logout_request">
+            <button type="submit">Logout</button>
+        </form>
+    </div>
+
+    <script>
+
+        let server_url = 'http://localhost:8000';
+
+        function roleAsString(role) {
+            switch (role) {
+                case 0:
+                    return "User";
+                case 1:
+                    return "Teacher";
+                case 2:
+                    return "Admin";
+                default:
+                    throw new Error("Invalid role");
+            }
+        }
+
+        function retrievePosts() {
+            $.ajax({
+                url: server_url + '/courses',
+                type: 'GET',
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    console.log(response);
+                    $('#posts').empty();
+                    for (let i = 0; i < response.length; i++) {
+                        $('#posts').append(`<p>${response[i].title}</p>`);
+                    }
+                },
+                error: function() {
+                    console.log("Error retrieving posts.");
+                }
+            });
+        }
+
+        function loadPageContent() {
+            $.ajax({
+                url: server_url + '/verify-token',
+                type: 'GET',
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    if (response.logged_in) {
+                        console.log("User is logged in.");
+                        // User is logged in, load the posts page or other content
+                        $('#login_page').hide();
+                        $('#posts_page').show();
+                        $('#posts_page #username_message').append(`Hello ${response.username}`);
+                        $('#posts_page #email_message').append(`Email: ${response.email}`);
+                        $('#posts_page #role_message').append(`Role: ${roleAsString(response.role)}`);
+                        retrievePosts(); // Function to load posts
+                    } else {
+                        console.log("User is not logged in.");
+                        console.log(response);
+                        // User is not logged in, show the login form
+                        $('#login_page').show();
+                        $('#posts_page').hide();
+                    }
+                },
+                // 401 error
+                statusCode: {
+                    401: function() {
+                        // Redirect to login page or show login form
+                        $('#login_page').show();
+                        $('#posts_page').hide();
+                    }
+                },
+                // any other error
+                error: function() {
+                    console.log("Error checking login status.");
+                }
+            });
+        }
+
+        $('#login_request').submit(async function(e) {
+            e.preventDefault();
+            let username = $('#login_request input[name="username"]').val();
+            let password = $('#login_request input[name="password"]').val();
+
+            let form_data = {
+                username: username,
+                password: password
+            };
+            console.log(form_data);
+            $.ajax({
+                url: server_url + '/login',
+                type: 'POST',
+                async: false,
+                cache: false,
+                data: JSON.stringify(form_data),
+                contentType: 'application/json; charset=utf-8',
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    console.log(response);
+                    if (response.logged_in) {
+                        console.log("User is logged in.");
+                        // reload the page content now that we are logged in
+                        loadPageContent();
+                    } else {
+                        console.log("User is not logged in.");
+                    }
+                },
+                error: function() {
+                    console.log("Error logging in.");
+                }
+            });
+        });
+
+        $('#logout_request').submit(function(e) {
+            e.preventDefault();
+            $.ajax({
+                url: server_url + '/logout',
+                type: 'POST',
+                async: false,
+                cache: false,
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    console.log(response);
+                    if (response.logged_in === false) {
+                        console.log("User is logged out.");
+                        // reload the page content now that we are logged out
+                        loadPageContent();
+                    } else {
+                        console.log("User is not logged out.");
+                    }
+                },
+                error: function() {
+                    console.log("Error logging out.");
+                }
+            });
+        });
+
+        $('#register_request').submit(function(e) {
+            e.preventDefault();
+            let email = $('#register_request input[name="email"]').val();
+            let username = $('#register_request input[name="username"]').val();
+            let password = $('#register_request input[name="password"]').val();
+
+            let form_data = {
+                email: email,
+                username: username,
+                password: password
+            };
+
+            $.ajax({
+                url: server_url + '/register',
+                type: 'POST',
+                async: false,
+                cache: false,
+                data: JSON.stringify(form_data),
+                contentType: 'application/json; charset=utf-8',
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    console.log(response);
+                    if (response.logged_in) {
+                        console.log("User is logged in.");
+                        // reload the page content now that we are logged in
+                        loadPageContent();
+                    } else {
+                        console.log("User is not logged in.");
+                    }
+                },
+                error: function() {
+                    console.log("Error registering.");
+                }
+            });
+        });
+
+        $(document).ready(function() {
+            loadPageContent(); // Call on page load
+        });
+
+    </script>
+</body>
+</html>
