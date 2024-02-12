@@ -10,6 +10,11 @@
     <title>Simple web request</title>
 </head>
 <body>
+    <div id="message_box" style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: lightblue; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 1000;">
+        <span id="message_content"></span>
+        <button id="close_message" style="margin-left: 20px;">x</button>
+    </div>
+
     <div id="login_page">
         <h1>Login</h1>
         <br>
@@ -30,8 +35,8 @@
         </form>
     </div>
 
-    <div id="posts_page" style="display:none;">
-        <h1>Posts</h1>
+    <div id="main_container" style="display:none;">
+        <h1>Courses</h1>
         <h2 id="username_message"></h2>
         <h2 id="email_message"></h2>
         <h2 id="role_message"></h2>
@@ -44,6 +49,13 @@
     <script>
 
         let server_url = 'http://localhost:8000';
+
+        let userState = {
+            isLoggedIn: false,
+            username: null,
+            email: null,
+            role: null,
+        };
 
         function roleAsString(role) {
             switch (role) {
@@ -58,7 +70,54 @@
             }
         }
 
-        function retrievePosts() {
+        function showMessage(message) {
+            $('#message_content').text(message);
+            $('#message_box').show();
+
+            const timeout = setTimeout(() => {
+                $('#message_box').hide();
+            }, 6000); // Hide after 6 seconds
+
+            $('#close_message').click(function() {
+                $('#message_box').hide();
+                clearTimeout(timeout); // Prevent the timeout from hiding the message if the user already closed it
+            });
+        }
+
+        function updateUserState() {
+            $.ajax({
+                url: server_url + '/verify-token',
+                type: 'GET',
+                cache: false,
+                async: false,
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+
+                    if (response.logged_in) {
+                        userState.isLoggedIn = true;
+                        userState.username = response.username;
+                        userState.email = response.email;
+                        userState.role = response.role;
+                    } else {
+                        userState.isLoggedIn = false;
+                        userState.username = null;
+                        userState.email = null;
+                        userState.role = null;
+                    }
+                    console.log("User state updated:", userState);
+                },
+                error: function() {
+                    console.log("Error updating user state.");
+                    // Reset userState in case of error
+                    userState.isLoggedIn = false;
+                    userState.username = null;
+                    userState.email = null;
+                    userState.role = null;
+                }
+            });
+        }
+
+        function retrieveCourses() {
             $.ajax({
                 url: server_url + '/courses',
                 type: 'GET',
@@ -76,43 +135,27 @@
             });
         }
 
+
         function loadPageContent() {
-            $.ajax({
-                url: server_url + '/verify-token',
-                type: 'GET',
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    if (response.logged_in) {
-                        console.log("User is logged in.");
-                        // User is logged in, load the posts page or other content
-                        $('#login_page').hide();
-                        $('#posts_page').show();
-                        $('#posts_page #username_message').append(`Hello ${response.username}`);
-                        $('#posts_page #email_message').append(`Email: ${response.email}`);
-                        $('#posts_page #role_message').append(`Role: ${roleAsString(response.role)}`);
-                        retrievePosts(); // Function to load posts
-                    } else {
-                        console.log("User is not logged in.");
-                        console.log(response);
-                        // User is not logged in, show the login form
-                        $('#login_page').show();
-                        $('#posts_page').hide();
-                    }
-                },
-                // 401 error
-                statusCode: {
-                    401: function() {
-                        // Redirect to login page or show login form
-                        $('#login_page').show();
-                        $('#posts_page').hide();
-                    }
-                },
-                // any other error
-                error: function() {
-                    console.log("Error checking login status.");
-                }
-            });
+            updateUserState();
+            if (userState.isLoggedIn) {
+                console.log("User is logged in.");
+                // User is logged in, load the posts page or other content
+                $('#login_page').hide();
+                $('#main_container').show();
+                $('#main_container #username_message').text(`Hello ${userState.username}`);
+                $('#main_container #email_message').text(`Email: ${userState.email}`);
+                $('#main_container #role_message').text(`Role: ${roleAsString(userState.role)}`);
+                showMessage("Success.");
+                retrieveCourses();
+            } else {
+                console.log("User is not logged in.");
+                // User is not logged in, show the login form
+                $('#login_page').show();
+                $('#main_container').hide();
+            }
         }
+
 
         $('#login_request').submit(async function(e) {
             e.preventDefault();
@@ -148,6 +191,7 @@
             });
         });
 
+
         $('#logout_request').submit(function(e) {
             e.preventDefault();
             $.ajax({
@@ -160,8 +204,7 @@
                     console.log(response);
                     if (response.logged_in === false) {
                         console.log("User is logged out.");
-                        // reload the page content now that we are logged out
-                        loadPageContent();
+                        showMessage("Logged out.");
                     } else {
                         console.log("User is not logged out.");
                     }
@@ -170,6 +213,8 @@
                     console.log("Error logging out.");
                 }
             });
+            updateUserState();
+            loadPageContent();
         });
 
         $('#register_request').submit(function(e) {
@@ -201,12 +246,14 @@
                     } else {
                         console.log("User is not logged in.");
                     }
+                    showMessage("Registered. Please login.");
                 },
                 error: function() {
                     console.log("Error registering.");
                 }
             });
         });
+
 
         $(document).ready(function() {
             loadPageContent(); // Call on page load

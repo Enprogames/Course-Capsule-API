@@ -5,7 +5,7 @@ from sqlalchemy import Enum
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 
-class UserRoles(enum.Enum):
+class UserRole(enum.Enum):
     user = 0
     teacher = 1
     admin = 2
@@ -16,7 +16,7 @@ class User(SQLModel, table=True):
     email: str = Field(sa_column_kwargs={"nullable": True})
     username: str = Field(sa_column_kwargs={"unique": True})
     password: str
-    role: UserRoles = Field(sa_column=Enum(UserRoles))
+    role: UserRole = Field(sa_column=Enum(UserRole))
 
 
 class Course(SQLModel, table=True):
@@ -40,9 +40,9 @@ with Session(engine) as session:
     if not session.exec(select(User)).first():
         session.add_all(
             [
-                User(username="admin", password="password", email="fred@example.com", role=UserRoles.admin),
-                User(username="bob", password="1234", email="bob@example.com", role=UserRoles.user),
-                User(username="alice", password="1234", email="alice@example.com", role=UserRoles.teacher),
+                User(username="admin", password="password", email="fred@example.com", role=UserRole.admin),
+                User(username="bob", password="1234", email="bob@example.com", role=UserRole.user),
+                User(username="alice", password="1234", email="alice@example.com", role=UserRole.teacher),
             ]
         )
         session.commit()

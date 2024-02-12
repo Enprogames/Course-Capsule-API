@@ -13,7 +13,7 @@ from fastapi import (
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.session_security import OAuth2PasswordBearerWithCookie, decode_jwt, sign_jwt
-from server.db import User, Course, engine, UserRoles
+from server.db import User, Course, engine, UserRole
 
 
 app = FastAPI()
@@ -158,7 +158,7 @@ async def register(user_data: UserRegisterSchema):
             username=user_data.username,
             password=user_data.password,
             email=user_data.email,
-            role=UserRoles.user
+            role=UserRole.user
         )
         session.add(new_user)
         session.commit()
