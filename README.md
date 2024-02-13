@@ -14,10 +14,11 @@ This is a client server application. The client is a simple HTML/CSS/JavaScript 
 ### Running the Server
 1. Ensure the virtual environment is activated: `source venv/bin/activate`
 2. Ensure your database is up-to-date: `alembic upgrade head`
-3. Run the server on port 8000: `uvicorn server:app --port 8000 --reload`
+3. Run the server on port 8000: `uvicorn main:app --port 8000 --reload`
 
 ### Running the Client
 1. Run a simple Python HTTP server: `python -m http.server 5000`
+    - Note: This must be running in a separate terminal window from the server. The server must be running at the same time.
 2. Open your browser and navigate to `http://localhost:5000`
     - Note: You must see "localhost" in the URL. This is because of how the server is setup. If you see an IP address, the client will not be able to communicate with the server.
 
