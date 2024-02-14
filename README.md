@@ -4,7 +4,9 @@
 1. Clone the repository: `git clone git@github.com:CSCI375-Stormtroopers/Course-Capsule.git`
 2. Change into the directory: `cd Course-Capsule`
 3. Setup Python virtual environment: `python3 -m venv venv`
-4. Activate the virtual environment: `source venv/bin/activate`
+4. Activate the virtual environment: 
+    - On Linux: `source venv/bin/activate`
+    - On Windows: `venv\Scripts\activate`
 5. Install the required packages: `pip install -r requirements.txt`
 
 ## Running the Application
@@ -12,7 +14,9 @@
 This is a client server application. The client is a simple HTML/CSS/JavaScript application that runs in the browser. The server is a Python FastAPI application that runs in the terminal. To see them in action, you will need to run both the client and the server.
 
 ### Running the Server
-1. Ensure the virtual environment is activated: `source venv/bin/activate`
+1. Ensure the virtual environment is activated:
+    - On Linux: `source venv/bin/activate`
+    - On Windows: `venv\Scripts\activate`
 2. Ensure your database is up-to-date: `alembic upgrade head`
 3. Run the server on port 8000: `uvicorn main:app --port 8000 --reload`
 
