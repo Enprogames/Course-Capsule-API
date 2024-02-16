@@ -1,12 +1,13 @@
 from logging.config import fileConfig
 
+from server.models import User, Course, Post
+from sqlmodel import SQLModel
+
 from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from alembic import context
-from sqlmodel import SQLModel
 
-from server.db import User, Course
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -22,6 +23,11 @@ if config.config_file_name is not None:
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
 target_metadata = SQLModel.metadata
+
+# print out all tables
+print("All tables in the database:")
+for table in target_metadata.tables:
+    print(table)
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
@@ -46,6 +52,8 @@ def run_migrations_offline() -> None:
         url=url,
         target_metadata=target_metadata,
         literal_binds=True,
+        compare_type=True,
+        include_schemas=True,
         dialect_opts={"paramstyle": "named"},
     )
 
@@ -61,14 +69,17 @@ def run_migrations_online() -> None:
 
     """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        config.get_section(config.config_ini_section),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            include_schemas=True,
+            compare_type=True,
         )
 
         with context.begin_transaction():

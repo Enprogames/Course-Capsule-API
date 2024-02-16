@@ -1,40 +1,13 @@
-from typing import Optional
-import enum
+from sqlmodel import Session, SQLModel, create_engine, select
 
-from sqlalchemy import Enum
-from sqlmodel import Field, Session, SQLModel, create_engine, select
-
-
-class UserRole(enum.Enum):
-    user = 0
-    teacher = 1
-    admin = 2
-
-
-class User(SQLModel, table=True):
-    id: int = Field(primary_key=True)
-    email: str = Field(sa_column_kwargs={"nullable": True})
-    username: str = Field(sa_column_kwargs={"unique": True})
-    password: str
-    role: UserRole = Field(sa_column=Enum(UserRole))
-
-
-class Course(SQLModel, table=True):
-    id: int = Field(primary_key=True)
-    title: str
-    description: str
-    author_id: int
-
+from server.models import User, Course, Post, UserRole
 
 # Database Setup
 DATABASE_URL = "sqlite:///db.sqlite3"
 
 engine = create_engine(DATABASE_URL)
-SQLModel.metadata.create_all(engine)
 
 with Session(engine) as session:
-    # Create tables
-    SQLModel.metadata.create_all(engine)
 
     # Insert initial data
     if not session.exec(select(User)).first():
@@ -64,6 +37,31 @@ with Session(engine) as session:
                     title="Third Course",
                     description="This is the third course",
                     author_id=1,
+                ),
+            ]
+        )
+        session.commit()
+
+    if not session.exec(select(Post)).first():
+        session.add_all(
+            [
+                Post(
+                    title="First Post",
+                    content="This is the first post",
+                    author_id=1,
+                    course_id=1,
+                ),
+                Post(
+                    title="Second Post",
+                    content="This is the second post",
+                    author_id=1,
+                    course_id=1,
+                ),
+                Post(
+                    title="Third Post",
+                    content="This is the third post",
+                    author_id=1,
+                    course_id=1,
                 ),
             ]
         )

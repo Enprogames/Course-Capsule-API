@@ -20,7 +20,8 @@ from pydantic import ValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.session_security import OAuth2PasswordBearerWithCookie, decode_jwt, sign_jwt
-from server.db import User, Course, engine, UserRole
+from server.models import User, Course, UserRole
+from server.db import engine
 
 
 app = FastAPI()

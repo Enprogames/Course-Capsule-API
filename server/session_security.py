@@ -8,7 +8,7 @@ from fastapi import HTTPException, status, Request, Response, Cookie
 from fastapi.security.utils import get_authorization_scheme_param
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 
-from server.db import UserRole
+from server.models import UserRole
 
 
 # Secret key for JWT
