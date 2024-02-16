@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="img/icon.png" type="image/x-icon">
-
+    <link rel ="stylesheet" href = "frontend/css/styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
     <title>Simple web request</title>
@@ -16,26 +16,32 @@
     </div>
 
     <div id="login_page">
-        <h1>Login</h1>
-        <br>
-        <form method="post" id="login_request">
-            <input type="text" name="username" placeholder="username"><br>
-            <input type="password" name="password" placeholder="password"><br>
-            <button type="submit">Submit</button>
-        </form>
+        <section id = "logo-section">
+            <img src="frontend/images/white-transparent-logo.png" alt="Course capsule logo">
+        </section>
+        <section id="forms-section">
+            
+            <form method="post" id="login_request">
+                <h1>Login</h1>
+                <input type="text" name="username" placeholder="username"><br>
+                <input type="password" name="password" placeholder="password"><br>
+                <button type="submit">Submit</button>
+            </form>
 
-        <br>
+            <br>
 
-        <h1>Register</h1>
-        <form method="post" id="register_request">
-            <input type="text" name="email" placeholder="email"><br>
-            <input type="text" name="username" placeholder="username"><br>
-            <input type="password" name="password" placeholder="password"><br>
-            <button type="submit">Register</button>
-        </form>
+
+            <form method="post" id="register_request">
+                <h1>Register</h1>
+                <input type="text" name="email" placeholder="email"><br>
+                <input type="text" name="username" placeholder="username"><br>
+                <input type="password" name="password" placeholder="password"><br>
+                <button type="submit">Register</button>
+            </form>
+        </section>
     </div>
 
-    <div id="main_container" style="display:none;">
+    <main id="main_container" style="display:none;">
         <h1>Courses</h1>
         <h2 id="username_message"></h2>
         <h2 id="email_message"></h2>
@@ -44,7 +50,7 @@
         <form method="post" id="logout_request">
             <button type="submit">Logout</button>
         </form>
-    </div>
+    </main>
 
     <script>
 
@@ -244,7 +250,7 @@
                         // reload the page content now that we are logged in
                         loadPageContent();
                     } else {
-                        console.log("User is not logged in.");
+                        console.log("User is not logged in."); 
                     }
                     showMessage("Registered. Please login.");
                 },
