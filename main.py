@@ -1,14 +1,21 @@
-from typing import Union, Annotated, Optional
+from typing import Union, Annotated, Optional, Callable
 
 from pydantic import BaseModel
+from jose import JWTError
 from sqlmodel import Session, select
 from fastapi import (
     FastAPI,
     HTTPException,
     Depends,
     Request,
-    Response
+    Response,
+    Security
 )
+from starlette.status import (
+    HTTP_401_UNAUTHORIZED,
+    HTTP_403_FORBIDDEN
+)
+from pydantic import ValidationError
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -33,15 +40,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    user_id: Union[int, None] = None
 
 
 class UserLoginSchema(BaseModel):
@@ -79,6 +77,35 @@ async def get_user_data(user_id: int) -> UserStatusSchema:
         raise HTTPException(status_code=404, detail="User not found")
 
 
+def ensure_user_role(
+        require_roles: list[UserRole]
+        ) -> Callable:
+
+    async def verify_user_role(
+        access_token: str = Security(oauth2_scheme),
+    ) -> int:
+        credentials_exception = HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED,
+            detail="Could not validate credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+        try:
+            token_data = decode_jwt(access_token)
+            if token_data:
+                user_id = token_data.user_id
+                user_role = token_data.role
+                if user_role not in require_roles:
+                    raise HTTPException(
+                        status_code=HTTP_403_FORBIDDEN,
+                        detail="Not enough permissions",
+                    )
+        except (JWTError, ValidationError):
+            raise credentials_exception
+
+        return user_id
+    return verify_user_role
+
+
 # Simple API route. Try typing http://localhost:8000 in your browser to see the result.
 # This makes a GET request to the server and the server responds with a JSON object.
 @app.get("/")
@@ -89,7 +116,8 @@ async def root():
 # This route is protected by the OAuth2 scheme. The user must be logged in to access this route.
 @app.get("/courses")
 async def get_courses(
-    access_token: Annotated[str, Depends(oauth2_scheme)]
+    access_token: Annotated[str, Depends(oauth2_scheme)],
+    user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
 ):
     with Session(engine) as session:
         courses = session.exec(select(Course)).all()
@@ -107,7 +135,7 @@ async def verify_token(
     if access_token:
         token_data = decode_jwt(access_token)
         if token_data:
-            user_id = token_data['user_id']
+            user_id = token_data.user_id
             print(f"User ID: {user_id}")
             return await get_user_data(user_id)
 
@@ -124,7 +152,7 @@ async def login(user_data: UserLoginSchema, request: Request, response: Response
         user = session.exec(select(User)
                             .where(User.username == username, User.password == password)).first()
     if user:
-        jwt_token = sign_jwt(user.id)
+        jwt_token = sign_jwt(user.id, user.role)
         response.set_cookie(
             key='access_token',
             value=f"Bearer {jwt_token}",
@@ -163,3 +191,16 @@ async def register(user_data: UserRegisterSchema):
         session.add(new_user)
         session.commit()
     return {'message': 'User created', 'code': 0}
+
+
+@app.post('/admin/delete-user')
+async def delete_user(
+    user_id: int = Depends(ensure_user_role([UserRole.admin]))
+):
+    with Session(engine) as session:
+        user = session.exec(select(User).where(User.id == user_id)).first()
+        if user:
+            session.delete(user)
+            session.commit()
+            return {'message': 'User deleted', 'code': 0}
+    return {'message': 'User not found', 'code': 1}
