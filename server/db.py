@@ -38,6 +38,31 @@ with Session(engine) as session:
                     description="This is the third course",
                     author_id=1,
                 ),
+                Course(
+                    title="Fourth Course",
+                    description="This is the fourth course",
+                    author_id=1,
+                ),
+                Course(
+                    title="Fifth Course",
+                    description="This is the fifth course",
+                    author_id=1,
+                ),
+                Course(
+                    title="Sixth Course",
+                    description="This is the sixth course",
+                    author_id=1,
+                ),
+                Course(
+                    title="Seventh Course",
+                    description="This is the seventh course",
+                    author_id=1,
+                ),
+                Course(
+                    title="Eighth Course",
+                    description="This is the eighth course",
+                    author_id=1,
+                ),
             ]
         )
         session.commit()

@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.session_security import OAuth2PasswordBearerWithCookie, decode_jwt, sign_jwt
-from server.models import User, Course, UserRole
+from server.models import User, Course, UserRole, Post
 from server.db import engine
 
 
@@ -83,7 +83,7 @@ def ensure_user_role(
         ) -> Callable:
 
     async def verify_user_role(
-        access_token: str = Security(oauth2_scheme),
+        access_token: str = Security(oauth2_scheme)
     ) -> int:
         credentials_exception = HTTPException(
             status_code=HTTP_401_UNAUTHORIZED,
@@ -117,13 +117,30 @@ async def root():
 # This route is protected by the OAuth2 scheme. The user must be logged in to access this route.
 @app.get("/courses")
 async def get_courses(
-    access_token: Annotated[str, Depends(oauth2_scheme)],
     user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
 ):
     with Session(engine) as session:
         courses = session.exec(select(Course)).all()
+
     return courses
 
+
+@app.get("/courses/{course_title}/posts")
+async def get_course_posts(
+    course_title: str,
+    user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
+):
+
+    with Session(engine) as session:
+        course = session.exec(
+            select(Course)
+            .where(Course.title == course_title)
+        ).first()
+        print(f"Course: {course}")
+        if course:
+            return course.posts
+        else:
+            raise HTTPException(status_code=404, detail="Course not found")
 
 # While the client is running, they can call this to check if they are logged in.
 # It also sends the username and email of the user if they are logged in.
