@@ -18,6 +18,7 @@ This is a client server application. The client is a simple HTML/CSS/JavaScript 
     - On Linux: `source venv/bin/activate`
     - On Windows: `venv\Scripts\activate`
 2. Ensure your database is up-to-date: `alembic upgrade head`
+    - **Note:** This will create the database if it does not exist and apply any pending migrations. The database file `db.sqlite3` doesn't exist until you run this command for the first time. If you run into any other issues, try deleting the database file and running this command again.
 3. Run the server on port 8000: `uvicorn main:app --port 8000 --reload`
 
 ### Running the Client
