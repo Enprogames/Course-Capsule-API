@@ -20,7 +20,7 @@ from pydantic import ValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.session_security import OAuth2PasswordBearerWithCookie, decode_jwt, sign_jwt
-from server.models import User, Course, UserRole, Post
+from server.models import User, Course, UserRole, Note
 from server.db import engine
 
 
@@ -125,8 +125,25 @@ async def get_courses(
     return courses
 
 
-@app.get("/courses/{course_title}/posts")
-async def get_course_posts(
+@app.get("courses/{course_title}/notes/{note_id}")
+async def get_note(
+    course_title: str,
+    note_id: int,
+    user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
+):
+    with Session(engine) as session:
+        note = session.exec(
+            select(Note.content)
+            .where(Note.id == note_id)
+        ).first()
+        if note:
+            return note.content
+        else:
+            raise HTTPException(status_code=404, detail="Note not found")
+
+
+@app.get("/courses/{course_title}/notes")
+async def get_course_notes(
     course_title: str,
     user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
 ):
@@ -138,7 +155,7 @@ async def get_course_posts(
         ).first()
         print(f"Course: {course}")
         if course:
-            return course.posts
+            return course.notes
         else:
             raise HTTPException(status_code=404, detail="Course not found")
 

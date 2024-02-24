@@ -77,6 +77,9 @@
                 data-page-list="[5, 10, 20, 50, 100, 200]"
                 data-search="true"
                 data-height="460"
+                data-toggle="table"
+                data-detail-view="true"
+                data-detail-formatter="formatPostContent"
                 data-pagination="true">
                 <thead>
                     <tr>
@@ -165,7 +168,7 @@
             });
         }
 
-        function ajaxCourseContent() {
+        function ajaxCourseList() {
             let courses = null;
             $.ajax({
                 url: server_url + '/courses/',
@@ -181,24 +184,24 @@
             return courses;
         }
 
-        function ajaxPostsContent(courseName) {
+        function ajaxRetrieveNotesList(courseName) {
             let posts = null;
             $.ajax({
-                url: server_url + '/courses/' + courseName + '/posts/',
+                url: server_url + '/courses/' + courseName + '/notes/',
                 type: 'GET',
                 cache: false,
                 async: false,
                 contentType: 'application/json; charset=utf-8',
                 xhrFields: { withCredentials: true },
                 success: function(response) {
-                    posts = response;
+                    notes = response;
                 }
             });
-            return posts;
+            return notes;
         }
 
         function loadCoursesTable() {
-            const courses = ajaxCourseContent();
+            const courses = ajaxCourseList();
             
             $('#course-table').bootstrapTable({
                 data: courses,
@@ -212,14 +215,28 @@
             });
         }
 
+        function formatPostContent(index, row) {
+            $.ajax({
+                url: server_url + '/courses/' + currentCourse + '/notes/' + row.id,
+                type: 'GET',
+                cache: false,
+                async: false,
+                contentType: 'application/json; charset=utf-8',
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    return response;
+                }
+            });
+        }
+
         function loadPostsTable(courseName) {
-            const posts = ajaxPostsContent(courseName);
+            const posts = ajaxRetrieveNotesList(courseName);
             $('#posts-table').bootstrapTable({
                 data: posts,
             });
 
             // add data-url attribute to table
-            $('#course-table').attr('data-url', server_url + '/courses/');
+            $('#posts-table').attr('data-url', server_url + '/courses/');
         }
 
         function clearCoursesTable() {

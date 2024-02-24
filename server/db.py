@@ -1,6 +1,6 @@
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from server.models import User, Course, Post, UserRole
+from server.models import User, Course, Note, UserRole
 
 # Database Setup
 DATABASE_URL = "sqlite:///db.sqlite3"
@@ -67,23 +67,26 @@ with Session(engine) as session:
         )
         session.commit()
 
-    if not session.exec(select(Post)).first():
+    if not session.exec(select(Note)).first():
         session.add_all(
             [
-                Post(
+                Note(
                     title="First Post",
+                    description="This is the first post",
                     content="This is the first post",
                     author_id=1,
                     course_id=1,
                 ),
-                Post(
+                Note(
                     title="Second Post",
+                    description="This is the second post",
                     content="This is the second post",
                     author_id=1,
                     course_id=1,
                 ),
-                Post(
+                Note(
                     title="Third Post",
+                    description="This is the third post",
                     content="This is the third post",
                     author_id=1,
                     course_id=1,
