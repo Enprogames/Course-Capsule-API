@@ -28,7 +28,7 @@ class Course(SQLModel, table=True):
     title: str
     description: str
     author_id: int = Field(foreign_key="user.id")
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    created_at: Optional[datetime.datetime] = Field(default_factory=datetime.datetime.now)
 
     author: Optional[User] = Relationship(back_populates="courses")
     notes: list["Note"] = Relationship(back_populates="course")

@@ -7,6 +7,10 @@
     <link rel ="stylesheet" href = "frontend/css/styles.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
+    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-table@1.22.2/dist/bootstrap-table.min.css" rel="stylesheet">
@@ -67,6 +71,18 @@
                     </tr>
                 </thead>
             </table>
+            <form id="createCourseForm">
+                <div>
+                    <label for="title">Title:</label>
+                    <input type="text" id="title" name="title" required>
+                </div>
+                <div>
+                    <label for="description">Description:</label>
+                    <textarea id="description" name="description" required></textarea>
+                </div>
+                <button type="submit">Create Course</button>
+            </form>
+            
         </div>
         <div id="course-content" class="container" style="display: none;">
             <h1 id="course-title"></h1>
@@ -83,7 +99,7 @@
                 data-pagination="true">
                 <thead>
                     <tr>
-                        <th data-field="id" hidden></th>
+                        <th data-field="id" data-visible="false"></th>
                         <th data-field="title" data-sortable="true">Title</th>
                         <th data-field="created_at" data-sortable="true">Creation Date</th>
                         <th data-field="author" data-sortable="true">Author</th>
@@ -169,6 +185,37 @@
             });
         }
 
+        function ajaxCreateCourse(courseData) {
+            $.ajax({
+                url: server_url + '/courses/create/',
+                type: 'POST',
+                cache: false,
+                async: false,
+                contentType: 'application/json',
+                xhrFields: { withCredentials: true },
+                data: JSON.stringify(courseData),
+                success: function(response) {
+                    console.log('Course created successfully:', response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error creating course:', error);
+                    showMessage("Error creating course.");
+                }
+            });
+        }
+
+        $('#createCourseForm').submit(function(e) {
+            e.preventDefault(); // Prevent the default form submission
+            const formData = {
+                title: $('#title').val(),
+                description: $('#description').val()
+            };
+
+            ajaxCreateCourse(formData);
+            showMessage("Course created successfully.");
+            loadPageContent();
+        });
+
         function ajaxCourseList() {
             let courses = null;
             $.ajax({
@@ -217,15 +264,17 @@
         }
 
         function formatPostContent(index, row) {
-            $.ajax({
-                url: server_url + '/courses/' + currentCourse + '/notes/' + row.id,
+            console.log("Row:", row);
+            $.get({
+                url: server_url + '/courses/' + encodeURIComponent(currentCourse) + '/notes/' + row.id,
                 type: 'GET',
                 cache: false,
                 async: false,
                 contentType: 'application/json; charset=utf-8',
                 xhrFields: { withCredentials: true },
                 success: function(response) {
-                    return response;
+                    console.log("Post content:", response);
+                    return '<p>' + response + '</p>';
                 }
             });
         }
@@ -383,7 +432,7 @@
 
         function handleHashChange() {
             const hashes = location.hash.substring(1).split('#'); // Split by '#'
-            const courseName = hashes[0];
+            const courseName = decodeURIComponent(hashes[0]);
 
             if (courseName !== '') {
                 currentCourse = courseName;

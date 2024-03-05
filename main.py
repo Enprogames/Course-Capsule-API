@@ -114,6 +114,18 @@ async def root():
     return {"message": "Hello World"}
 
 
+@app.post("/courses/create")
+async def create_course(
+    new_course: Course,
+    user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
+):
+    with Session(engine) as session:
+        new_course.author_id = user_id
+        session.add(new_course)
+        session.commit()
+    return {"message": "Course created"}
+
+
 # This route is protected by the OAuth2 scheme. The user must be logged in to access this route.
 @app.get("/courses")
 async def get_courses(
@@ -125,19 +137,19 @@ async def get_courses(
     return courses
 
 
-@app.get("courses/{course_title}/notes/{note_id}")
+@app.get("/courses/{course_title}/notes/{note_id}")
 async def get_note(
     course_title: str,
     note_id: int,
     user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
 ):
     with Session(engine) as session:
-        note = session.exec(
+        note_content = session.exec(
             select(Note.content)
             .where(Note.id == note_id)
         ).first()
-        if note:
-            return note.content
+        if note_content:
+            return note_content
         else:
             raise HTTPException(status_code=404, detail="Note not found")
 
