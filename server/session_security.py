@@ -52,24 +52,27 @@ class OAuth2PasswordBearerWithCookie(OAuth2):
         return param
 
 
-def sign_jwt(user_id: int, role: UserRole) -> dict[str, any]:
-    """Sign a JWT token with the username"""
-    payload = {
-        'sub': str(user_id),
-        'exp': time.time() + 600,
-        'iat': time.time(),
-        'role': str(role.value)
-    }
-    return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+class UserSessionManager:
 
+    @staticmethod
+    def sign_jwt(user_id: int, role: UserRole) -> dict[str, any]:
+        """Sign a JWT token with the username"""
+        payload = {
+            'sub': str(user_id),
+            'exp': time.time() + 600,
+            'iat': time.time(),
+            'role': str(role.value)
+        }
+        return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
-def decode_jwt(token: str) -> Union[TokenData, None]:
-    try:
-        decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    @staticmethod
+    def decode_jwt(token: str) -> Union[TokenData, None]:
+        try:
+            decoded_token = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
 
-        if decoded_token['exp'] < time.time():
+            if decoded_token['exp'] < time.time():
+                return None
+            else:
+                return TokenData(user_id=decoded_token['sub'], role=UserRole(int(decoded_token['role'])))
+        except JWTError:
             return None
-        else:
-            return TokenData(user_id=decoded_token['sub'], role=UserRole(int(decoded_token['role'])))
-    except JWTError:
-        return None

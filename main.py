@@ -19,7 +19,7 @@ from pydantic import ValidationError
 
 from fastapi.middleware.cors import CORSMiddleware
 
-from server.session_security import OAuth2PasswordBearerWithCookie, decode_jwt, sign_jwt
+from server.session_security import OAuth2PasswordBearerWithCookie, UserSessionManager
 from server.models import User, Course, UserRole, Note
 from server.db import engine
 
@@ -91,7 +91,7 @@ def ensure_user_role(
             headers={"WWW-Authenticate": "Bearer"},
         )
         try:
-            token_data = decode_jwt(access_token)
+            token_data = UserSessionManager.decode_jwt(access_token)
             if token_data:
                 user_id = token_data.user_id
                 user_role = token_data.role
@@ -168,7 +168,7 @@ async def verify_token(
 ):
 
     if access_token:
-        token_data = decode_jwt(access_token)
+        token_data = UserSessionManager.decode_jwt(access_token)
         if token_data:
             user_id = token_data.user_id
             print(f"User ID: {user_id}")
@@ -187,7 +187,7 @@ async def login(user_data: UserLoginSchema, request: Request, response: Response
         user = session.exec(select(User)
                             .where(User.username == username, User.password == password)).first()
     if user:
-        jwt_token = sign_jwt(user.id, user.role)
+        jwt_token = UserSessionManager.sign_jwt(user.id, user.role)
         response.set_cookie(
             key='access_token',
             value=f"Bearer {jwt_token}",
