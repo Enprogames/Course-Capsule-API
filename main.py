@@ -100,10 +100,12 @@ def ensure_user_role(
                         status_code=HTTP_403_FORBIDDEN,
                         detail="Not enough permissions",
                     )
+                return user_id
+            else:
+                raise credentials_exception
         except (JWTError, ValidationError):
             raise credentials_exception
 
-        return user_id
     return verify_user_role
 
 

@@ -21,12 +21,13 @@
     <title>Simple web request</title>
 </head>
 <body>
+    <div id="loading_overlay"></div>
     <div id="message_box" style="display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: lightblue; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0,0,0,0.5); z-index: 1000;">
         <span id="message_content"></span>
         <button id="close_message" style="margin-left: 20px;">x</button>
     </div>
 
-    <div id="login_page">
+    <div id="login_page"  style="display: none;">
         <section id = "logo-section">
             <img src="frontend/images/white-transparent-logo.png" alt="Course capsule logo">
         </section>
@@ -95,7 +96,6 @@
                 data-height="460"
                 data-toggle="table"
                 data-detail-view="true"
-                data-detail-formatter="formatPostContent"
                 data-pagination="true">
                 <thead>
                     <tr>
@@ -111,10 +111,14 @@
         </div>
         <button id="logout_button">Logout</button>
     </main>
-
-    <script>
+    
+    <!-- <script type="module">
+    </script> -->
+    <script type="module">
+        import CoursePostListPage from './frontend/js/CoursePostListPage.js';
 
         let server_url = 'http://localhost:8000';
+        let coursePostsPage;
 
         let userState = {
             isLoggedIn: false,
@@ -232,23 +236,8 @@
             return courses;
         }
 
-        function ajaxRetrieveNotesList(courseName) {
-            let posts = null;
-            $.ajax({
-                url: server_url + '/courses/' + courseName + '/notes/',
-                type: 'GET',
-                cache: false,
-                async: false,
-                contentType: 'application/json; charset=utf-8',
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    notes = response;
-                }
-            });
-            return notes;
-        }
-
         function loadCoursesTable() {
+            clearCoursesTable();
             const courses = ajaxCourseList();
             
             $('#course-table').bootstrapTable({
@@ -263,31 +252,22 @@
             });
         }
 
-        function formatPostContent(index, row) {
-            console.log("Row:", row);
-            $.get({
-                url: server_url + '/courses/' + encodeURIComponent(currentCourse) + '/notes/' + row.id,
-                type: 'GET',
-                cache: false,
-                async: false,
-                contentType: 'application/json; charset=utf-8',
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    console.log("Post content:", response);
-                    return '<p>' + response + '</p>';
-                }
-            });
-        }
-
         function loadPostsTable(courseName) {
-            const posts = ajaxRetrieveNotesList(courseName);
-            $('#posts-table').bootstrapTable({
-                data: posts,
+            clearPostsTable();
+            coursePostsPage = new CoursePostListPage(server_url, courseName);
+
+            coursePostsPage.loadPosts().then(() => {
+                $('#posts-table').bootstrapTable({
+                    data: coursePostsPage.posts,
+                    detailView: true,
+                    detailFormatter: function(index, row) {
+                        return coursePostsPage.formatPostContent(index, row);
+                    }
+                });
             });
-            console.log("Posts loaded:", posts);
 
             // add data-url attribute to table
-            $('#posts-table').attr('data-url', server_url + '/courses/');
+            $('#posts-table').attr('data-url', `${server_url}/courses/${courseName}/notes/`);
         }
 
         function clearCoursesTable() {
@@ -431,11 +411,10 @@
         });
 
         function handleHashChange() {
-            const hashes = location.hash.substring(1).split('#'); // Split by '#'
-            const courseName = decodeURIComponent(hashes[0]);
+            const hash = location.hash.substring(1); // Get the part after '#'
 
-            if (courseName !== '') {
-                currentCourse = courseName;
+            if (hash !== '') {
+                currentCourse = decodeURIComponent(hash);
             } else {
                 currentCourse = null;
             }
@@ -444,10 +423,18 @@
 
         window.addEventListener('hashchange', handleHashChange);
         $(document).ready(function() {
+
+            // Hide the loading overlay
+            $('#loading_overlay').fadeOut('slow', function() {
+                // This callback function will be executed after the fadeOut animation completes
+                $(this).remove(); // This removes the overlay from the DOM after hiding it
+            });
+
             if (location.hash !== '') {
                 handleHashChange();
+            } else {
+                loadPageContent();
             }
-            loadPageContent(); // Call on page load
         });
 
     </script>
