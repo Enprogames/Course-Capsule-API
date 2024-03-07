@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: 194a1cdc60da
+Revision ID: d777975902dc
 Revises: 
-Create Date: 2024-02-16 14:57:39.657830
+Create Date: 2024-03-07 12:34:02.150247
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlmodel
 
 
 # revision identifiers, used by Alembic.
-revision: str = '194a1cdc60da'
+revision: str = 'd777975902dc'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -35,17 +35,19 @@ def upgrade() -> None:
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('author_id', sa.Integer(), nullable=False),
-    sa.Column('created_at', sa.DateTime(), nullable=False),
+    sa.Column('created_at', sa.DateTime(), nullable=True),
     sa.ForeignKeyConstraint(['author_id'], ['user.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('post',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
-    sa.Column('content', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('description', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
+    sa.Column('type', sqlmodel.sql.sqltypes.AutoString(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('author_id', sa.Integer(), nullable=False),
     sa.Column('course_id', sa.Integer(), nullable=False),
+    sa.Column('content', sqlmodel.sql.sqltypes.AutoString(), nullable=True),
     sa.ForeignKeyConstraint(['author_id'], ['user.id'], ),
     sa.ForeignKeyConstraint(['course_id'], ['course.id'], ),
     sa.PrimaryKeyConstraint('id')

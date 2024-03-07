@@ -20,7 +20,7 @@ class User(SQLModel, table=True):
     role: UserRole = Field(sa_column=Enum(UserRole))
 
     courses: list["Course"] = Relationship(back_populates="author")
-    notes: list["Note"] = Relationship(back_populates="author")
+    posts: list["Post"] = Relationship(back_populates="author")
 
 
 class Course(SQLModel, table=True):
@@ -31,19 +31,24 @@ class Course(SQLModel, table=True):
     created_at: Optional[datetime.datetime] = Field(default_factory=datetime.datetime.now)
 
     author: Optional[User] = Relationship(back_populates="courses")
-    notes: list["Note"] = Relationship(back_populates="course")
+    posts: list["Post"] = Relationship(back_populates="course")
 
 
 """
-### Inheritance of Note from Post ###
+### Inheritance of Note and FlashcardSet from Post ###
 
-The `Note` class inherits from the `Post` class. This means
-that all attributes are inherited. A decision was made to not
-let `Post` be its own table. 
+The `Note` class (and `FlashcardSet` in the future) inherit from the `Post` class. But since
+we are using single table inheritance, they are actually represented by one `Post` class. This
+means that all attributes are inherited from the `Post` class, and additional attributes may or
+may not be null depending on the type of post.
+
+Concrete inheritance in databases means that multiple types of objects are stored in the same
+table, and a column is used to differentiate between the types. In this case, the `type` column
+is used to differentiate between `Note` and `FlashcardSet`.
 """
 
 
-class Post(SQLModel):
+class Post(SQLModel, table=True):
     """Base class for all posts. This class itself should not be used to create any posts.
     Instead, use the `Note` class to create notes.
     In the future, other types of posts can be created, such as `FlashcardSet`.
@@ -55,13 +60,14 @@ class Post(SQLModel):
     id: Optional[int] = Field(primary_key=True)
     title: str
     description: str
+    type: str = Field(sa_column_kwargs={"nullable": False})
+
     created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
     author_id: int = Field(foreign_key="user.id")
     course_id: int = Field(foreign_key="course.id")
 
-
-class Note(Post, table=True):
+    # field specific to notes
     content: Optional[str] = Field(sa_column_kwargs={"nullable": True})
 
-    author: Optional[User] = Relationship(back_populates="notes")
-    course: Optional[Course] = Relationship(back_populates="notes")
+    author: Optional[User] = Relationship(back_populates="posts")
+    course: Optional[Course] = Relationship(back_populates="posts")

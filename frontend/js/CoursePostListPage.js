@@ -1,6 +1,6 @@
 
 class CoursePostListPage {
-    
+
     constructor(serverUrl, courseTitle) {
         this.serverUrl = serverUrl
         this.courseTitle = courseTitle;
@@ -11,7 +11,7 @@ class CoursePostListPage {
 
     loadPosts() {
         return $.ajax({
-            url: `${this.serverUrl}/courses/${this.courseTitle}/notes/`,
+            url: `${this.serverUrl}/courses/${this.courseTitle}/posts/`,
             type: 'GET',
             async: false,
             cache: false,

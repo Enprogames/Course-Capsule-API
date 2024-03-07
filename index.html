@@ -111,9 +111,7 @@
         </div>
         <button id="logout_button">Logout</button>
     </main>
-    
-    <!-- <script type="module">
-    </script> -->
+
     <script type="module">
         import CoursePostListPage from './frontend/js/CoursePostListPage.js';
 
@@ -267,7 +265,7 @@
             });
 
             // add data-url attribute to table
-            $('#posts-table').attr('data-url', `${server_url}/courses/${courseName}/notes/`);
+            $('#posts-table').attr('data-url', `${server_url}/courses/${courseName}/posts/`);
         }
 
         function clearCoursesTable() {

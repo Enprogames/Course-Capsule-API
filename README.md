@@ -30,3 +30,10 @@ This is a client server application. The client is a simple HTML/CSS/JavaScript 
 At the time of writing, there are some fake users and courses in the database. You can login with the following credentials:
 - Username: `admin`
 - Password: `password`
+
+## Alembic Migrations
+- Create new migration: `alembic revision --autogenerate -m "migration message"`
+- Apply migrations: `alembic upgrade head`
+- Downgrade migrations: `alembic downgrade -1`
+- Go to specific migration: `alembic upgrade <hash>` or `alembic downgrade <hash>` where `<hash>` is the hash of the migration.
+- Show migration history: `alembic history`
