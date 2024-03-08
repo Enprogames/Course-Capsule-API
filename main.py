@@ -2,7 +2,7 @@ from typing import Union, Annotated, Optional, Callable
 
 from pydantic import BaseModel
 from jose import JWTError
-from sqlmodel import Session, select
+from sqlmodel import Session, select, delete
 from fastapi import (
     FastAPI,
     HTTPException,
@@ -126,6 +126,23 @@ async def create_course(
         session.add(new_course)
         session.commit()
     return {"message": "Course created"}
+
+
+@app.post("/courses/{course_title}/delete")
+async def delete_course(
+    course_title: str,
+    user_id: int = Depends(ensure_user_role([UserRole.admin]))
+):
+    with Session(engine) as session:
+        course = session.exec(select(Course).where(Course.title == course_title)).first()
+        if course:
+            session.exec(
+                delete(Course).where(Course.title == course_title)
+            )
+            session.commit()
+            return {"message": "Course deleted"}
+        else:
+            raise HTTPException(status_code=404, detail="Course not found")
 
 
 # This route is protected by the OAuth2 scheme. The user must be logged in to access this route.

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="img/icon.png" type="image/x-icon">
     <link rel ="stylesheet" href = "frontend/css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
 
     <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
@@ -69,6 +70,11 @@
                     <tr>
                         <th data-field="title" data-sortable="true">Name</th>
                         <th data-field="description" data-sortable="true">Description</th>
+                        <th
+                            data-field="operation"
+                            data-title="Operation"
+                            data-align="center"
+                            data-click-to-select="false"></th>
                     </tr>
                 </thead>
             </table>
@@ -110,19 +116,39 @@
             <button id="back_button">Back</button>
         </div>
         <button id="logout_button">Logout</button>
+        
     </main>
 
+    <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" aria-labelledby="modalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="modalLabel">Confirm Deletion</h5>
+            </div>
+            <div class="modal-body">
+              Are you sure you want to delete this course?
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-dismiss="modal" id="dismissDelete">Cancel</button>
+              <button type="button" class="btn btn-danger" id="confirmDelete">Delete</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
     <script type="module">
+        import CourseListPage from './frontend/js/CourseListPage.js';
         import CoursePostListPage from './frontend/js/CoursePostListPage.js';
 
         let server_url = 'http://localhost:8000';
+        let courseListPage;
         let coursePostsPage;
 
         let userState = {
             isLoggedIn: false,
             username: null,
             email: null,
-            role: null,
+            role: null,  // 0 or 1 or 2
         };
 
         let currentCourse = null;
@@ -162,7 +188,6 @@
                 async: false,
                 xhrFields: { withCredentials: true },
                 success: function(response) {
-
                     if (response.logged_in) {
                         userState.isLoggedIn = true;
                         userState.username = response.username;
@@ -187,25 +212,6 @@
             });
         }
 
-        function ajaxCreateCourse(courseData) {
-            $.ajax({
-                url: server_url + '/courses/create/',
-                type: 'POST',
-                cache: false,
-                async: false,
-                contentType: 'application/json',
-                xhrFields: { withCredentials: true },
-                data: JSON.stringify(courseData),
-                success: function(response) {
-                    console.log('Course created successfully:', response);
-                },
-                error: function(xhr, status, error) {
-                    console.error('Error creating course:', error);
-                    showMessage("Error creating course.");
-                }
-            });
-        }
-
         $('#createCourseForm').submit(function(e) {
             e.preventDefault(); // Prevent the default form submission
             const formData = {
@@ -213,41 +219,82 @@
                 description: $('#description').val()
             };
 
-            ajaxCreateCourse(formData);
+            courseListPage.createCourse(formData);
             showMessage("Course created successfully.");
             loadPageContent();
         });
 
-        function ajaxCourseList() {
-            let courses = null;
-            $.ajax({
-                url: server_url + '/courses/',
-                type: 'GET',
-                cache: false,
-                async: false,
-                contentType: 'application/json; charset=utf-8',
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    courses = response;
-                }
-            });
-            return courses;
+        window.operateEvents = {
+            'click .course-table-view': (e, value, row, index) => {
+                console.log("view button clicked");
+                location.hash = `#${row.title}`;
+            },
+            'click .course-table-remove': function (e, value, row, index) {
+                // Store row or row.title in a way accessible to the confirmation callback
+                $('#deleteConfirmationModal').data('courseTitle', row.title); // Using data attribute
+                $('#deleteConfirmationModal').modal('show');
+            }
+        }
+
+        $('#deleteConfirmationModal').on('hidden.bs.modal', function (e) {
+            // Clear the stored course title when the modal is closed
+            $('#deleteConfirmationModal').removeData('courseTitle');
+        });
+
+        $('#dismissDelete').click(function() {
+            $('#deleteConfirmationModal').modal('hide');
+        });
+
+        $('#confirmDelete').click(function() {
+            const courseTitle = $('#deleteConfirmationModal').data('courseTitle'); // Retrieve stored course title
+            console.log("Deleting course:", courseTitle);
+            courseListPage.deleteCourse(courseTitle)
+                .then((response) => {
+                    // Handle successful deletion
+                    showMessage("Course deleted successfully.");
+                    $('#deleteConfirmationModal').modal('hide');
+                    loadCoursesTable(); // Reload or update table
+                })
+                .catch((error) => {
+                    // Handle deletion error
+                    showMessage("Error deleting course: " + error);
+                    $('#deleteConfirmationModal').modal('hide');
+                });
+        });
+
+        function operateFormatter(value, index, row) {
+            let html = [];
+            html.push(
+                '<a class="course-table-view" href="javascript:void(0)" title="View">',
+                '<i class="fa fa-info"></i>',
+                '</a>'
+            );
+
+            if (userState.role === 2) {
+                html.push(
+                    '<br>',
+                    '<a class="course-table-remove" href="javascript:void(0)" title="Remove">',
+                    '<i class="fa fa-trash"></i>',
+                    '</a>'
+                );
+            }
+            return html.join('');
         }
 
         function loadCoursesTable() {
             clearCoursesTable();
-            const courses = ajaxCourseList();
-            
-            $('#course-table').bootstrapTable({
-                data: courses,
+            courseListPage = new CourseListPage(server_url);
+
+            courseListPage.loadCourses().then(() => {
+                $('#course-table').bootstrapTable({
+                    data: courseListPage.courses,
+                });
             });
 
-            // add data-url attribute to table
-            $('#course-table').attr('data-url', server_url + '/courses/');
-
-            $('#course-table').on('click-row.bs.table', function(e, row, $element) {
-                location.hash = `#${row.title}`;
-            });
+            // set the operate column to use the courseListPage.operateFormatter function
+            // set attribute for column with field name 'operation'
+            $('#course-table th[data-field="operation"]').data('formatter', operateFormatter);
+            $('#course-table th[data-field="operation"]').data('events', window.operateEvents);
         }
 
         function loadPostsTable(courseName) {
@@ -258,7 +305,7 @@
                 $('#posts-table').bootstrapTable({
                     data: coursePostsPage.posts,
                     detailView: true,
-                    detailFormatter: function(index, row) {
+                    detailFormatter: (index, row) => {
                         return coursePostsPage.formatPostContent(index, row);
                     }
                 });
@@ -420,7 +467,8 @@
         }
 
         window.addEventListener('hashchange', handleHashChange);
-        $(document).ready(function() {
+
+        $(document).ready(() => {
 
             // Hide the loading overlay
             $('#loading_overlay').fadeOut('slow', function() {

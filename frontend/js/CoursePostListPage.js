@@ -2,7 +2,7 @@
 class CoursePostListPage {
 
     constructor(serverUrl, courseTitle) {
-        this.serverUrl = serverUrl
+        this.serverUrl = serverUrl;
         this.courseTitle = courseTitle;
         this.courseId;
         this.courseDescription;
