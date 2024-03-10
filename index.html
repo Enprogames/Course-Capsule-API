@@ -137,21 +137,29 @@
       </div>
 
     <script type="module">
+
         import CourseListPage from './frontend/js/CourseListPage.js';
         import CoursePostListPage from './frontend/js/CoursePostListPage.js';
 
-        let server_url = 'http://localhost:8000';
-        let courseListPage;
-        let coursePostsPage;
+        
+        function operateFormatter(value, index, row) {
+            let html = [];
+            html.push(
+                '<a class="course-table-view" href="javascript:void(0)" title="View">',
+                '<i class="fa fa-info"></i>',
+                '</a>'
+            );
 
-        let userState = {
-            isLoggedIn: false,
-            username: null,
-            email: null,
-            role: null,  // 0 or 1 or 2
-        };
-
-        let currentCourse = null;
+            if (pageManager.userState.role === 2) {
+                html.push(
+                    '<br>',
+                    '<a class="course-table-remove" href="javascript:void(0)" title="Remove">',
+                    '<i class="fa fa-trash"></i>',
+                    '</a>'
+                );
+            }
+            return html.join('');
+        }
 
         function roleAsString(role) {
             switch (role) {
@@ -180,48 +188,174 @@
             });
         }
 
-        function updateUserState() {
-            $.ajax({
-                url: server_url + '/verify-token',
-                type: 'GET',
-                cache: false,
-                async: false,
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    if (response.logged_in) {
-                        userState.isLoggedIn = true;
-                        userState.username = response.username;
-                        userState.email = response.email;
-                        userState.role = response.role;
-                    } else {
-                        userState.isLoggedIn = false;
-                        userState.username = null;
-                        userState.email = null;
-                        userState.role = null;
-                    }
-                    console.log("User state updated:", userState);
-                },
-                error: function() {
-                    console.log("Error updating user state.");
-                    // Reset userState in case of error
-                    userState.isLoggedIn = false;
-                    userState.username = null;
-                    userState.email = null;
-                    userState.role = null;
-                }
-            });
+        class LoginPage {
+            constructor(server_url) {
+                this.server_url = server_url;
+            }
+
+            login(username, password) {
+                const form_data = {
+                    username: username,
+                    password: password
+                };
+                return $.ajax({
+                    url: this.server_url + '/login',
+                    type: 'POST',
+                    async: false,
+                    cache: false,
+                    data: JSON.stringify(form_data),
+                    contentType: 'application/json; charset=utf-8',
+                    xhrFields: { withCredentials: true }
+                });
+            }
+
+            logout() {
+                return $.ajax({
+                    url: this.server_url + '/logout',
+                    type: 'POST',
+                    async: false,
+                    cache: false,
+                    xhrFields: { withCredentials: true }
+                });
+            }
         }
 
-        $('#createCourseForm').submit(function(e) {
+        class PageManager {
+
+            constructor(server_url) {
+                this.server_url = server_url;
+                this.current_course = null;
+                this.courseListPage = new CourseListPage(this.server_url);
+                this.coursePostsPage = new CoursePostListPage(this.server_url, this.current_course);
+                this.loginPage = new LoginPage(this.server_url);
+                
+                this.userState = {
+                    isLoggedIn: false,
+                    username: null,
+                    email: null,
+                    role: null,  // 0 or 1 or 2
+                };
+            }
+
+            updateUserState() {
+                $.ajax({
+                    url: this.server_url + '/verify-token',
+                    type: 'GET',
+                    cache: false,
+                    async: false,
+                    xhrFields: { withCredentials: true },
+                    success: (response) => {
+                        if (response.logged_in) {
+                            this.userState.isLoggedIn = true;
+                            this.userState.username = response.username;
+                            this.userState.email = response.email;
+                            this.userState.role = response.role;
+                        } else {
+                            this.userState.isLoggedIn = false;
+                            this.userState.username = null;
+                            this.userState.email = null;
+                            this.userState.role = null;
+                        }
+                        console.log("User state updated:", this.userState);
+                    },
+                    error: () => {
+                        console.log("Error updating user state.");
+                        // Reset userState in case of error
+                        this.userState.isLoggedIn = false;
+                        this.userState.username = null;
+                        this.userState.email = null;
+                        this.userState.role = null;
+                    }
+                });
+            }
+
+            loadCoursesTable() {
+                this.clearCoursesTable();
+
+                this.courseListPage.loadCourses().then(() => {
+                    $('#course-table').bootstrapTable({
+                        data: this.courseListPage.courses,
+                    });
+                });
+
+                // set the operate column to use the courseListPage.operateFormatter function
+                // set attribute for column with field name 'operation'
+                $('#course-table th[data-field="operation"]').data('formatter', operateFormatter);
+                $('#course-table th[data-field="operation"]').data('events', window.operateEvents);
+            }
+
+            loadPostsTable(courseTitle) {
+                this.clearPostsTable();
+                this.coursePostsPage.courseTitle = courseTitle;
+
+                this.coursePostsPage.loadPosts().then(() => {
+                    $('#posts-table').bootstrapTable({
+                        data: this.coursePostsPage.posts,
+                        detailView: true,
+                        detailFormatter: (index, row) => {
+                            return this.coursePostsPage.formatPostContent(index, row);
+                        }
+                    });
+                });
+
+                // add data-url attribute to table
+                $('#posts-table').attr('data-url', `${this.server_url}/courses/${courseTitle}/posts/`);
+            }
+
+            clearCoursesTable() {
+                $('#course-table').bootstrapTable('destroy');
+            }
+
+            clearPostsTable() {
+                $('#posts-table').bootstrapTable('destroy');
+            }
+
+            loadPageContent() {
+                this.updateUserState();
+                if (this.userState.isLoggedIn) {
+                    console.log("User is logged in.");
+                    // User is logged in, load the posts page or other content
+                    $('#main_container #username_message').text(`Hello ${this.userState.username}`);
+                    $('#main_container #email_message').text(`Email: ${this.userState.email}`);
+                    $('#main_container #role_message').text(`Role: ${roleAsString(this.userState.role)}`);
+
+                    $('#login_page').hide();
+                    $('#main_container').show();
+                    if (this.current_course !== null) {
+                        $('#course-content').show();
+                        $('#courses').hide();
+                        $('#course-title').text(this.current_course);
+                        $('#course-description').text("Description of " + this.current_course);
+                        this.clearCoursesTable();
+                        this.loadPostsTable(this.current_course);
+                    } else {
+                        $('#course-content').hide();
+                        $('#courses').show();
+                        this.clearPostsTable();
+                        this.loadCoursesTable();
+                    }
+                } else {
+                    console.log("User is not logged in.");
+                    // User is not logged in, show the login form
+                    $('#login_page').show();
+                    $('#main_container').hide();
+                    this.clearCoursesTable();
+                }
+            }
+        }
+
+        let pageManager = new PageManager("http://localhost:8000");
+
+        $('#createCourseForm').submit((e) => {
             e.preventDefault(); // Prevent the default form submission
             const formData = {
                 title: $('#title').val(),
                 description: $('#description').val()
             };
 
-            courseListPage.createCourse(formData);
+            pageManager.courseListPage.createCourse(formData);
             showMessage("Course created successfully.");
-            loadPageContent();
+            pageManager.loadPageContent();
         });
 
         window.operateEvents = {
@@ -248,12 +382,12 @@
         $('#confirmDelete').click(function() {
             const courseTitle = $('#deleteConfirmationModal').data('courseTitle'); // Retrieve stored course title
             console.log("Deleting course:", courseTitle);
-            courseListPage.deleteCourse(courseTitle)
+            pageManager.courseListPage.deleteCourse(courseTitle)
                 .then((response) => {
                     // Handle successful deletion
                     showMessage("Course deleted successfully.");
                     $('#deleteConfirmationModal').modal('hide');
-                    loadCoursesTable(); // Reload or update table
+                    pageManager.loadCoursesTable(); // Reload or update table
                 })
                 .catch((error) => {
                     // Handle deletion error
@@ -261,101 +395,6 @@
                     $('#deleteConfirmationModal').modal('hide');
                 });
         });
-
-        function operateFormatter(value, index, row) {
-            let html = [];
-            html.push(
-                '<a class="course-table-view" href="javascript:void(0)" title="View">',
-                '<i class="fa fa-info"></i>',
-                '</a>'
-            );
-
-            if (userState.role === 2) {
-                html.push(
-                    '<br>',
-                    '<a class="course-table-remove" href="javascript:void(0)" title="Remove">',
-                    '<i class="fa fa-trash"></i>',
-                    '</a>'
-                );
-            }
-            return html.join('');
-        }
-
-        function loadCoursesTable() {
-            clearCoursesTable();
-            courseListPage = new CourseListPage(server_url);
-
-            courseListPage.loadCourses().then(() => {
-                $('#course-table').bootstrapTable({
-                    data: courseListPage.courses,
-                });
-            });
-
-            // set the operate column to use the courseListPage.operateFormatter function
-            // set attribute for column with field name 'operation'
-            $('#course-table th[data-field="operation"]').data('formatter', operateFormatter);
-            $('#course-table th[data-field="operation"]').data('events', window.operateEvents);
-        }
-
-        function loadPostsTable(courseName) {
-            clearPostsTable();
-            coursePostsPage = new CoursePostListPage(server_url, courseName);
-
-            coursePostsPage.loadPosts().then(() => {
-                $('#posts-table').bootstrapTable({
-                    data: coursePostsPage.posts,
-                    detailView: true,
-                    detailFormatter: (index, row) => {
-                        return coursePostsPage.formatPostContent(index, row);
-                    }
-                });
-            });
-
-            // add data-url attribute to table
-            $('#posts-table').attr('data-url', `${server_url}/courses/${courseName}/posts/`);
-        }
-
-        function clearCoursesTable() {
-            $('#course-table').bootstrapTable('destroy');
-        }
-
-        function clearPostsTable() {
-            $('#posts-table').bootstrapTable('destroy');
-        }
-
-
-        function loadPageContent() {
-            updateUserState();
-            if (userState.isLoggedIn) {
-                console.log("User is logged in.");
-                // User is logged in, load the posts page or other content
-                $('#main_container #username_message').text(`Hello ${userState.username}`);
-                $('#main_container #email_message').text(`Email: ${userState.email}`);
-                $('#main_container #role_message').text(`Role: ${roleAsString(userState.role)}`);
-
-                $('#login_page').hide();
-                $('#main_container').show();
-                if (currentCourse !== null) {
-                    $('#course-content').show();
-                    $('#courses').hide();
-                    $('#course-title').text(currentCourse);
-                    $('#course-description').text("Description of " + currentCourse);
-                    clearCoursesTable();
-                    loadPostsTable(currentCourse);
-                } else {
-                    $('#course-content').hide();
-                    $('#courses').show();
-                    clearPostsTable();
-                    loadCoursesTable();
-                }
-            } else {
-                console.log("User is not logged in.");
-                // User is not logged in, show the login form
-                $('#login_page').show();
-                $('#main_container').hide();
-                clearCoursesTable();
-            }
-        }
 
         $('#back_button').click(function() {
             location.hash = '';
@@ -366,57 +405,37 @@
             let username = $('#login_request input[name="username"]').val();
             let password = $('#login_request input[name="password"]').val();
 
-            let form_data = {
-                username: username,
-                password: password
-            };
-            $.ajax({
-                url: server_url + '/login',
-                type: 'POST',
-                async: false,
-                cache: false,
-                data: JSON.stringify(form_data),
-                contentType: 'application/json; charset=utf-8',
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    if (response.logged_in) {
-                        console.log("User is logged in.");
-                        // reload the page content now that we are logged in
-                        loadPageContent();
-                        showMessage("Success.");
-                    } else {
-                        console.log("User is not logged in.");
-                    }
-                },
-                error: function() {
-                    console.log("Error logging in.");
+            pageManager.loginPage.login(username, password).then((response) => {
+                if (response.logged_in) {
+                    console.log("User is logged in.");
+                    // reload the page content now that we are logged in
+                    pageManager.loadPageContent();
+                    showMessage("Success.");
+                } else {
+                    console.log("User is not logged in.");
                 }
+            }).catch((error) => {
+                console.log("Error logging in:", error);
             });
         });
 
 
         $('#logout_button').click(function(e) {
             e.preventDefault();
-            $.ajax({
-                url: server_url + '/logout',
-                type: 'POST',
-                async: false,
-                cache: false,
-                xhrFields: { withCredentials: true },
-                success: function(response) {
-                    if (response.logged_in === false) {
-                        console.log("User is logged out.");
-                        showMessage("Logged out.");
-                    } else {
-                        console.log("User is not logged out.");
-                    }
-                },
-                error: function() {
-                    console.log("Error logging out.");
+
+            pageManager.loginPage.logout().then((response) => {
+                if (response.logged_in === false) {
+                    console.log("User is logged out.");
+                    showMessage("Logged out.");
+                } else {
+                    console.log("User is not logged out.");
                 }
+            }).catch((error) => {
+                console.log("Error logging out:", error);
             });
-            updateUserState();
-            loadPageContent();
+
+            pageManager.updateUserState();
+            pageManager.loadPageContent();
         });
 
         $('#register_request').submit(function(e) {
@@ -459,11 +478,11 @@
             const hash = location.hash.substring(1); // Get the part after '#'
 
             if (hash !== '') {
-                currentCourse = decodeURIComponent(hash);
+                pageManager.current_course = decodeURIComponent(hash);
             } else {
-                currentCourse = null;
+                pageManager.current_course = null;
             }
-            loadPageContent();
+            pageManager.loadPageContent();
         }
 
         window.addEventListener('hashchange', handleHashChange);
@@ -479,7 +498,7 @@
             if (location.hash !== '') {
                 handleHashChange();
             } else {
-                loadPageContent();
+                pageManager.loadPageContent();
             }
         });
 
