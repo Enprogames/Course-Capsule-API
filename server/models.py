@@ -62,7 +62,7 @@ class Post(SQLModel, table=True):
     description: str
     type: str = Field(sa_column_kwargs={"nullable": False})
 
-    created_at: datetime.datetime = Field(default_factory=datetime.datetime.now)
+    created_at: Optional[datetime.datetime] = Field(default_factory=datetime.datetime.now)
     author_id: int = Field(foreign_key="user.id")
     course_id: int = Field(foreign_key="course.id")
 

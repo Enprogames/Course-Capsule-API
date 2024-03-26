@@ -127,6 +127,18 @@ async def create_course(
         session.commit()
     return {"message": "Course created"}
 
+@app.post("/courses/{course_title}/create")
+async def create_post(
+    new_post: Post,
+    user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
+):
+    with Session(engine) as session:
+        new_post.author_id = user_id
+        new_post.course_id = 1
+        session.add(new_post)
+        session.commit()
+    return {"message": "Post created"}
+
 
 @app.post("/courses/{course_title}/delete")
 async def delete_course(

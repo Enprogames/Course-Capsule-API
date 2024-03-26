@@ -112,6 +112,17 @@
                     </tr>
                 </thead>
             </table>
+            <form id="createPostForm">
+                <div>
+                    <label for="postTitle">Title:</label>
+                    <input type="text" id="postTitle" name="postTitle" required>
+                </div>
+                <div>
+                    <label for="postDescription">Description:</label>
+                    <textarea id="postDescription" name="postDescription" required></textarea>
+                </div>
+                <button type="submit">Create Post</button>
+            </form>
 
             <button id="back_button">Back</button>
         </div>
@@ -355,6 +366,20 @@
 
             pageManager.courseListPage.createCourse(formData);
             showMessage("Course created successfully.");
+            pageManager.loadPageContent();
+        });
+
+        $('#createPostForm').submit((e) => {
+            e.preventDefault(); // Prevent the default form submission
+            const formData = {
+                title: $('#postTitle').val(),
+                description: $('#postDescription').val(),
+                content: $('#postDescription').val(),
+                type: "note"
+            };
+
+            pageManager.coursePostsPage.createPost(formData);
+            showMessage("Post created successfully.");
             pageManager.loadPageContent();
         });
 
