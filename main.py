@@ -129,12 +129,13 @@ async def create_course(
 
 @app.post("/courses/{course_title}/create")
 async def create_post(
+    course_title: str,
     new_post: Post,
     user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
 ):
     with Session(engine) as session:
         new_post.author_id = user_id
-        new_post.course_id = 1
+        new_post.course_id = session.exec(select(Course.id).where(Course.title == course_title)).first()
         session.add(new_post)
         session.commit()
     return {"message": "Post created"}
