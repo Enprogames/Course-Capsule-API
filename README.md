@@ -37,3 +37,9 @@ At the time of writing, there are some fake users and courses in the database. Y
 - Downgrade migrations: `alembic downgrade -1`
 - Go to specific migration: `alembic upgrade <hash>` or `alembic downgrade <hash>` where `<hash>` is the hash of the migration.
 - Show migration history: `alembic history`
+
+## Unit and Integration Test Suite
+
+Run the test suite by running: `pytest`
+    - Make sure the server is not running when you run the tests.
+    - If you get an error, try reinstalling any missing requirements: `pip install -r requirements.txt`
