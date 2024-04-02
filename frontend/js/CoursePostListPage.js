@@ -43,6 +43,27 @@ class CoursePostListPage {
         });
     }
 
+    approvePost(postId) {
+        return new Promise((resolve, reject) => {
+            $.ajax({
+                url: `${this.serverUrl}/courses/${this.courseTitle}/posts/${postId}/approve/`,
+                type: 'POST',
+                cache: false,
+                async: false,
+                contentType: 'application/json',
+                xhrFields: { withCredentials: true },
+                success: function(response) {
+                    console.log('Post approved successfully:', response);
+                    resolve(response);
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error approving post:', error);
+                    reject(error);
+                }
+            });
+        });
+    }
+
     formatPostContent(index, row) {
         const post = this.posts.find(p => p.id === row.id);
 

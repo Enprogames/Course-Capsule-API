@@ -20,8 +20,9 @@ from pydantic import ValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
 from server.session_security import OAuth2PasswordBearerWithCookie, UserSessionManager
-from server.models import User, Course, UserRole, Post
+from server.models import User, Course, UserRole, Post, PostWithAuthor, Approval
 from server.db import engine
+from sqlalchemy.orm import joinedload
 
 
 app = FastAPI()
@@ -109,13 +110,6 @@ def ensure_user_role(
     return verify_user_role
 
 
-# Simple API route. Try typing http://localhost:8000 in your browser to see the result.
-# This makes a GET request to the server and the server responds with a JSON object.
-@app.get("/")
-async def root():
-    return {"message": "Hello World"}
-
-
 @app.post("/courses/create")
 async def create_course(
     new_course: Course,
@@ -158,6 +152,25 @@ async def delete_course(
             raise HTTPException(status_code=404, detail="Course not found")
 
 
+@app.post("/courses/{course_title}/posts/{post_id}/approve")
+async def approve_post(
+    post_id: int,
+    user_id: int = Depends(ensure_user_role([UserRole.teacher, UserRole.admin]))
+):
+    with Session(engine) as session:
+        post = session.exec(
+            select(Post)
+            .where(Post.id == post_id)
+        ).first()
+        if post:
+            approval = Approval(post_id=post_id, user_id=user_id)
+            session.add(approval)
+            session.commit()
+            return {"message": "Post approved"}
+        else:
+            raise HTTPException(status_code=404, detail="Post not found")
+
+
 # This route is protected by the OAuth2 scheme. The user must be logged in to access this route.
 @app.get("/courses")
 async def get_courses(
@@ -190,15 +203,20 @@ async def get_post(
 async def get_course_posts(
     course_title: str,
     user_id: int = Depends(ensure_user_role([UserRole.user, UserRole.teacher, UserRole.admin]))
-):
+) -> list[PostWithAuthor]:
 
     with Session(engine) as session:
         course = session.exec(
             select(Course)
+            .options(joinedload(Course.posts).joinedload(Post.author), joinedload(Course.posts).joinedload(Post.approvals).joinedload(Approval.user))
             .where(Course.title == course_title)
         ).first()
+        approved = False
         if course:
-            return course.posts
+            # Return a list of posts with the author's username
+            return [{**post.dict(),
+                     'author_username': post.author.username,
+                     'approvers': [approval.user.username for approval in post.approvals]} for post in course.posts]
         else:
             raise HTTPException(status_code=404, detail="Course not found")
 
