@@ -2,6 +2,7 @@ import enum
 from typing import Optional
 import datetime
 
+from pydantic import ConfigDict
 from sqlalchemy import Enum, UniqueConstraint
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -79,13 +80,12 @@ class Post(BasePost, table=True):
 
 
 class PostWithAuthor(BasePost, table=False):
+    model_config = ConfigDict(arbitrary_types_allowed=True)
     id: int
     content: str
     author_username: str
     approvers: list[str]
 
-    class Config:
-        arbitrary_types_allowed = True
 
 class Approval(SQLModel, table=True):
     id: Optional[int] = Field(primary_key=True)
