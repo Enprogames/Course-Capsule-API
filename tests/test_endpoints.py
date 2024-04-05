@@ -1,8 +1,9 @@
+import datetime
 import pytest
 from urllib.parse import quote
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
+from sqlmodel import Session, select, insert
 
 from main import app
 from server.models import User, UserRole, Course, Post
@@ -55,11 +56,166 @@ def populate_database(session: Session):
     # The database is automatically cleared after each test because of the session fixture
 
 
+@pytest.fixture(name='user_factory')
+def user_factory_fixture(session: Session):
 
-def test_create_course(session: Session):
-    # TODO: Implement test for creating a course
-    pass
+    def valid_user(
+            role: UserRole = UserRole.user,
+            valid: bool = True,
+            username: str = 'mynewuser',
+            password: str = 'password123'
+        ):
+        new_user = User(username=username, role=role, password=password)
+        session.add(new_user)
+        session.commit()
+        session.refresh(new_user)
+        if valid:
+            session_token = UserSessionManager.sign_jwt(new_user.id, new_user.role)
+        else:
+            session_token = "Bearer invalidtoken"
 
+        client.cookies.update({"access_token": f"Bearer {session_token}"})
+        return new_user
+
+    yield valid_user
+
+    # cleanup
+    del client.cookies['access_token']
+
+
+def test_create_course(populate_database, user_factory):
+    """Ensure a logged in user can create a course"""
+
+    # Log in a valid user
+    user_factory(role=UserRole.user, valid=True)
+
+    response = client.post(
+        f"/courses/create",
+        json={
+            'title': 'My New Course',
+            'description': 'This is my new course.'
+        }
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "Course created"}
+
+def test_delete_course_no_user_denied(session: Session, populate_database):
+    """Ensure that when there is no user logged in, a course cannot be deleted"""
+
+    some_course = session.exec(
+        select(Course)
+    ).first()
+
+    escaped_title = quote(some_course.title, safe='')
+
+    response = client.post(
+        f"/courses/{escaped_title}/delete"
+    )
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Not authenticated"}
+
+    # ensure the course still exists in the database
+    some_course = session.exec(
+        select(Course)
+        .where(Course.id == some_course.id)
+    ).first()
+    assert some_course is not None
+
+def test_delete_course_invalid_user_denied(session: Session, populate_database, user_factory):
+    """Ensure that an invalid user is unable to delete a course"""
+    # Log in a valid user
+    user_factory(role=UserRole.user, valid=False)
+
+    some_course = session.exec(
+        select(Course)
+    ).first()
+
+    escaped_title = quote(some_course.title, safe='')
+
+    response = client.post(
+        f"/courses/{escaped_title}/delete"
+    )
+    assert response.status_code == 401
+    assert response.json() == {"detail": "Could not validate credentials"}
+
+    # ensure the course still exists in the database
+    some_course = session.exec(
+        select(Course)
+        .where(Course.id == some_course.id)
+    ).first()
+    assert some_course is not None
+
+def test_delete_course_user_denied(session: Session, populate_database, user_factory):
+    """Ensure that a logged in user is unable to delete a course"""
+    # Log in a valid user
+    user_factory(role=UserRole.user, valid=True)
+
+    some_course = session.exec(
+        select(Course)
+    ).first()
+
+    escaped_title = quote(some_course.title, safe='')
+
+    response = client.post(
+        f"/courses/{escaped_title}/delete"
+    )
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not enough permissions"}
+
+    # ensure the course still exists in the database
+    some_course = session.exec(
+        select(Course)
+        .where(Course.id == some_course.id)
+    ).first()
+    assert some_course is not None
+
+def test_delete_course_teacher_denied(session: Session, populate_database, user_factory):
+    """Ensure that a logged in teacher is unable to delete a course"""
+    # Log in a valid teacher
+    user_factory(role=UserRole.teacher, valid=True)
+
+    some_course = session.exec(
+        select(Course)
+    ).first()
+
+    escaped_title = quote(some_course.title, safe='')
+
+    response = client.post(
+        f"/courses/{escaped_title}/delete"
+    )
+    assert response.status_code == 403
+    assert response.json() == {"detail": "Not enough permissions"}
+
+    # ensure the course still exists in the database
+    some_course = session.exec(
+        select(Course)
+        .where(Course.id == some_course.id)
+    ).first()
+    assert some_course is not None
+
+def test_delete_course_admin_success(session: Session, populate_database, user_factory):
+    """Ensure that a logged in teacher is unable to delete a course"""
+    # Log in a valid admin
+    user_factory(role=UserRole.admin, valid=True)
+
+    some_course = session.exec(
+        select(Course)
+    ).first()
+
+    escaped_title = quote(some_course.title, safe='')
+
+    response = client.post(
+        f"/courses/{escaped_title}/delete"
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "Course deleted"}
+
+    # ensure the course no longer exists in the database
+    some_course = session.exec(
+        select(Course)
+        .where(Course.id == some_course.id)
+    ).first()
+    assert some_course is None
 
 def test_view_post_no_token(session: Session, populate_database):
     """Test creating a post without a session token
@@ -83,15 +239,16 @@ def test_view_post_no_token(session: Session, populate_database):
     assert response.json() == {"detail": "Not authenticated"}
 
 
-def test_view_post_invalid_token(session: Session, populate_database):
+def test_view_post_invalid_token(session: Session, populate_database, user_factory):
     """Test creating a post with an invalid session token
     """
+
+    invalid_user = user_factory(role=UserRole.user, valid=False)
+
     first_post = session.exec(select(Post)).first()
     some_course = session.exec(
         select(Course).where(Course.id == first_post.course_id)
     ).first()
-
-    client.cookies.update({"access_token": "Bearer invalidtoken"})
 
     escaped_title = quote(some_course.title, safe='')
     response = client.get(f"/courses/{escaped_title}/posts/{first_post.id}")
@@ -103,15 +260,17 @@ def test_view_post_invalid_token(session: Session, populate_database):
     assert response.json() == {"detail": "Could not validate credentials"}
 
 
-def test_view_post_valid_token(session: Session, populate_database):
+def test_view_post_valid_token(
+        session: Session,
+        populate_database,
+        user_factory):
+    my_user = user_factory(UserRole.user)
+
     user1 = session.exec(select(User).where(User.username == "user1")).first()
     first_post = session.exec(select(Post)).first()
     some_course = session.exec(
         select(Course).where(Course.id == first_post.course_id)
     ).first()
-    valid_token = UserSessionManager.sign_jwt(user1.id, user1.role)
-
-    client.cookies.update({"access_token": f"Bearer {valid_token}"})
 
     escaped_title = quote(some_course.title, safe='')
 
