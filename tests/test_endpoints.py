@@ -2,6 +2,7 @@
 test/test_endpoints.py
 
 Unit and integration tests to ensure all of the API endpoints work correctly.
+The first part contains unit tests, while the second contains integration tests.
 """
 
 import pytest
@@ -11,12 +12,10 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
 from main import app
-from server.models import User, UserRole, Course, Post
+from server.models import User, UserRole, Course, Post, Approval
 from server.session_security import UserSessionManager
 from utils import session_fixture  # noqa: F401
 
-# Constants
-TEST_DATABASE_URL = "sqlite:///:memory:"
 
 # Test client
 client = TestClient(app=app)
@@ -86,6 +85,13 @@ def user_factory_fixture(session: Session):
 
     # cleanup
     del client.cookies['access_token']
+
+
+"""
+########################################################
+###################### UNIT TESTS ######################
+########################################################
+"""
 
 
 def test_create_course(populate_database, user_factory):
@@ -315,3 +321,131 @@ def test_view_post_valid_token(
             "content": first_post.content
         }
     ]
+
+
+def test_create_account(session: Session):
+    """Ensure that after a user registers a new account, their new account
+    exists in the database.
+    """
+    response = client.post(
+        "/register",
+        json={
+            "username": "newuser",
+            "email": "newuser@example.com",
+            "password": "newpassword"
+        }
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "User created", "code": 0}
+    # Verify user is actually created in the database
+    user = session.exec(select(User).where(User.username == "newuser")).first()
+    assert user is not None
+    assert user.email == "newuser@example.com"
+
+
+def test_admin_approves_post(session: Session, populate_database, user_factory):
+    """Ensure that administrators can approve posts, and that an
+    approval object is created in the database.
+    """
+    # Use the admin user factory to create and login an admin
+    admin = user_factory(role=UserRole.admin, valid=True)
+    course = session.exec(select(Course)).first()
+    # Retrieve a post
+    escaped_title = quote(course.title, safe='')
+    response = client.post(
+        f"/courses/{escaped_title}/posts/1/approve"
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "Post approved"}
+    # Verify the approval is recorded in the database
+    approval = session.exec(select(Approval).where(Approval.post_id == 1, Approval.user_id == admin.id)).first()
+    assert approval is not None
+
+
+"""
+########################################################
+################## INTEGRATION TESTS ###################
+########################################################
+"""
+
+
+def test_course_creation_and_posting(session: Session, user_factory):
+    """Ensure that after a course is created by a user, posts can be
+    created for that course.
+    """
+
+    # Log in a valid user with capability to create a course
+    user_factory(role=UserRole.teacher, valid=True)
+
+    # Create a new course
+    response = client.post(
+        "/courses/create",
+        json={
+            "title": "Integration Test Course",
+            "description": "Course for integration testing"
+        }
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "Course created"}
+
+    escaped_title = quote("Integration Test Course", safe='')
+
+    # Create a post in the newly created course
+    course_id = session.exec(select(Course.id).where(Course.title == "Integration Test Course")).first()
+    response = client.post(
+        f"/courses/{escaped_title}/create",
+        json={
+            "title": "Integration Test Post",
+            "description": "Post for integration testing",
+            "content": "This is a test post content.",
+            "type": "Note"
+        }
+    )
+    assert response.status_code == 200
+    assert response.json() == {"message": "Post created"}
+
+    # Verify post is created under the course
+    post = session.exec(select(Post).where(Post.course_id == course_id)).first()
+    assert post is not None
+    assert post.title == "Integration Test Post"
+
+
+@pytest.mark.skip("Run this after the post deletion endpoint is implemented.")
+def test_create_and_delete_post(session: Session, user_factory):
+    """Ensure that a post can be created and then deleted.
+    """
+    # Log in a valid user
+    user_factory(role=UserRole.user, valid=True)
+    # Create a post
+    course = session.exec(select(Course)).first()
+    escaped_title = quote(course.title, safe='')
+    response = client.post(
+        f"/courses/{escaped_title}/create",
+        json={
+            "title": "Temp Post",
+            "description": "Temporary post for testing deletion",
+            "content": "This post will be deleted.",
+            "type": "Note"
+        }
+    )
+    assert response.status_code == 200
+    post_id = session.exec(select(Post.id).where(Post.title == "Temp Post")).first()[0]
+    # Delete the post
+    response = client.post(f"/courses/{escaped_title}/posts/{post_id}/delete")
+    assert response.status_code == 200
+    post = session.exec(select(Post).where(Post.id == post_id)).first()
+    assert post is None
+
+
+def test_no_view_on_deleted_course(session: Session, populate_database, user_factory):
+    """Ensure that after a course is deleted, it cannot be viewed.
+    """
+    # Log in as admin to delete a course
+    user_factory(role=UserRole.admin, valid=True)
+    course = session.exec(select(Course)).first()
+    escaped_title = quote(course.title, safe='')
+    client.post(f"/courses/{escaped_title}/delete")
+    # Attempt to view posts on the deleted course
+    response = client.get(f"/courses/{escaped_title}/posts")
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Course not found"}

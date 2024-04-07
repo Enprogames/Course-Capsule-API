@@ -67,4 +67,4 @@ Run the test suite by running: `pytest`
         - `CoursePostListPage.js`: Defines the CoursePostListPage class, which controls creating posts, approving them, and retrieving a set of them from the database.
 - `tests/`: Location of all unit tests.
     - `test_db.py`: Simple unit tests for database models.
-    - `test_endpoints.py`: Unit and integration tests to ensure all of the API endpoints work correctly.
+    - `test_endpoints.py`: Unit and integration tests to ensure all of the API endpoints work correctly. The first part contains unit tests, while the second contains integration tests.
