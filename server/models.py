@@ -1,3 +1,10 @@
+"""
+server/models.py
+
+Define all database tables as SQLModel classes. Additionally, defines
+schemas for data that will be sent and received from the frontend web server.
+"""
+
 import enum
 from typing import Optional
 import datetime

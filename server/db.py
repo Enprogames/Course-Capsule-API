@@ -1,4 +1,10 @@
-from sqlmodel import Session, SQLModel, create_engine, select
+"""
+server/db.py
+
+Setup a connection to the main database and create some sample data.
+"""
+
+from sqlmodel import Session, create_engine, select
 
 from server.models import User, Course, Post, UserRole
 

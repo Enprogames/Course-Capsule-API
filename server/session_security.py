@@ -1,10 +1,16 @@
+"""
+server/session_security.py
+
+Handle creation and decoding of session tokens.
+"""
+
 import time
 from typing import Optional, Union
 
 from pydantic import BaseModel
 from jose import JWTError, jwt
 from fastapi.security import OAuth2
-from fastapi import HTTPException, status, Request, Response, Cookie
+from fastapi import HTTPException, status, Request
 from fastapi.security.utils import get_authorization_scheme_param
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 

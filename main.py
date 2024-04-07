@@ -1,4 +1,10 @@
-from typing import Union, Annotated, Optional, Callable
+"""
+main.py
+
+Defines the FastAPI backend server configuration and all API endpoints.
+"""
+
+from typing import Generator, Union, Annotated, Optional, Callable
 
 from pydantic import BaseModel
 from jose import JWTError
@@ -7,7 +13,6 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Depends,
-    Request,
     Response,
     Security
 )
@@ -67,7 +72,7 @@ optional_oauth2_scheme = OAuth2PasswordBearerWithCookie(
     tokenUrl="login", auto_error=False)
 
 
-def get_session() -> Session:
+def get_session() -> Generator[Session, None, None]:
     from server.db import engine
     with Session(engine) as session:
         yield session
@@ -124,6 +129,7 @@ async def create_course(
     session.add(new_course)
     session.commit()
     return {"message": "Course created"}
+
 
 @app.post("/courses/{course_title}/create")
 async def create_post(
@@ -211,27 +217,33 @@ async def get_course_posts(
 ) -> list[PostWithAuthor]:
     course = session.exec(
         select(Course)
-        .options(joinedload(Course.posts).joinedload(Post.author), joinedload(Course.posts).joinedload(Post.approvals).joinedload(Approval.user))
+        .options(
+            joinedload(Course.posts).
+            joinedload(Post.author),
+            joinedload(Course.posts)
+            .joinedload(Post.approvals)
+            .joinedload(Approval.user))
         .where(Course.title == course_title)
     ).first()
-    approved = False
     if course:
         # Return a list of posts with the author's username
         return [{**post.model_dump(),
-                    'author_username': post.author.username,
-                    'approvers': [approval.user.username for approval in post.approvals]} for post in course.posts]
+                 'author_username': post.author.username,
+                 'approvers': [approval.user.username for approval in post.approvals]} for post in course.posts]
     else:
         raise HTTPException(status_code=404, detail="Course not found")
 
-# While the client is running, they can call this to check if they are logged in.
-# It also sends the username and email of the user if they are logged in.
+
 @app.get("/verify-token")
 async def verify_token(
     session: Session = Depends(get_session),
     access_token: Annotated[Union[str, None],
                             Depends(optional_oauth2_scheme)] = None
 ):
-
+    """
+    While the client is running, they can call this to check if they are logged in.
+    It also sends the username and email of the user if they are logged in.
+    """
     if access_token:
         token_data = UserSessionManager.decode_jwt(access_token)
         if token_data:
@@ -246,7 +258,6 @@ async def verify_token(
 @app.post("/login")
 async def login(
     user_data: UserLoginSchema,
-    request: Request,
     response: Response,
     session: Session = Depends(get_session)
 ):

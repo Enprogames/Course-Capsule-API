@@ -1,14 +1,19 @@
-import datetime
+"""
+test/test_endpoints.py
+
+Unit and integration tests to ensure all of the API endpoints work correctly.
+"""
+
 import pytest
 from urllib.parse import quote
 
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select, insert
+from sqlmodel import Session, select
 
 from main import app
 from server.models import User, UserRole, Course, Post
 from server.session_security import UserSessionManager
-from utils import session_fixture
+from utils import session_fixture  # noqa: F401
 
 # Constants
 TEST_DATABASE_URL = "sqlite:///:memory:"
@@ -64,7 +69,7 @@ def user_factory_fixture(session: Session):
             valid: bool = True,
             username: str = 'mynewuser',
             password: str = 'password123'
-        ):
+    ):
         new_user = User(username=username, role=role, password=password)
         session.add(new_user)
         session.commit()
@@ -90,7 +95,7 @@ def test_create_course(populate_database, user_factory):
     user_factory(role=UserRole.user, valid=True)
 
     response = client.post(
-        f"/courses/create",
+        "/courses/create",
         json={
             'title': 'My New Course',
             'description': 'This is my new course.'
@@ -98,6 +103,7 @@ def test_create_course(populate_database, user_factory):
     )
     assert response.status_code == 200
     assert response.json() == {"message": "Course created"}
+
 
 def test_delete_course_no_user_denied(session: Session, populate_database):
     """Ensure that when there is no user logged in, a course cannot be deleted"""
@@ -120,6 +126,7 @@ def test_delete_course_no_user_denied(session: Session, populate_database):
         .where(Course.id == some_course.id)
     ).first()
     assert some_course is not None
+
 
 def test_delete_course_invalid_user_denied(session: Session, populate_database, user_factory):
     """Ensure that an invalid user is unable to delete a course"""
@@ -145,6 +152,7 @@ def test_delete_course_invalid_user_denied(session: Session, populate_database, 
     ).first()
     assert some_course is not None
 
+
 def test_delete_course_user_denied(session: Session, populate_database, user_factory):
     """Ensure that a logged in user is unable to delete a course"""
     # Log in a valid user
@@ -168,6 +176,7 @@ def test_delete_course_user_denied(session: Session, populate_database, user_fac
         .where(Course.id == some_course.id)
     ).first()
     assert some_course is not None
+
 
 def test_delete_course_teacher_denied(session: Session, populate_database, user_factory):
     """Ensure that a logged in teacher is unable to delete a course"""
@@ -193,6 +202,7 @@ def test_delete_course_teacher_denied(session: Session, populate_database, user_
     ).first()
     assert some_course is not None
 
+
 def test_delete_course_admin_success(session: Session, populate_database, user_factory):
     """Ensure that a logged in teacher is unable to delete a course"""
     # Log in a valid admin
@@ -216,6 +226,7 @@ def test_delete_course_admin_success(session: Session, populate_database, user_f
         .where(Course.id == some_course.id)
     ).first()
     assert some_course is None
+
 
 def test_view_post_no_token(session: Session, populate_database):
     """Test creating a post without a session token
@@ -243,7 +254,7 @@ def test_view_post_invalid_token(session: Session, populate_database, user_facto
     """Test creating a post with an invalid session token
     """
 
-    invalid_user = user_factory(role=UserRole.user, valid=False)
+    user_factory(role=UserRole.user, valid=False)
 
     first_post = session.exec(select(Post)).first()
     some_course = session.exec(
@@ -264,7 +275,8 @@ def test_view_post_valid_token(
         session: Session,
         populate_database,
         user_factory):
-    my_user = user_factory(UserRole.user)
+
+    user_factory(UserRole.user)
 
     user1 = session.exec(select(User).where(User.username == "user1")).first()
     first_post = session.exec(select(Post)).first()

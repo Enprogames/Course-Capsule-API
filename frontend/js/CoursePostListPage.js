@@ -1,3 +1,10 @@
+///
+// frontend/js/CoursePostListPage.js
+//
+// Defines the CoursePostListPage class, which controls creating posts,
+// approving them, and retrieving a set of them from the database.
+//
+
 
 class CoursePostListPage {
 

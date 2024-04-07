@@ -1,3 +1,10 @@
+///
+// frontend/js/CourseListPage.js
+//
+// Defines the CourseListPage class, which controls creating courses,
+// deleting them, and retrieving them from the database.
+//
+
 
 class CourseListPage {
 
