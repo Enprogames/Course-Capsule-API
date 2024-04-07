@@ -1,4 +1,4 @@
-# Course Capsule
+# Course Capsule README.md 
 
 ## Setup Instructions
 1. Clone the repository: `git clone git@github.com:CSCI375-Stormtroopers/Course-Capsule.git`
@@ -43,3 +43,28 @@ At the time of writing, there are some fake users and courses in the database. Y
 Run the test suite by running: `pytest`
     - Make sure the server is not running when you run the tests.
     - If you get an error, try reinstalling any missing requirements: `pip install -r requirements.txt`
+
+
+## Directory Structure and Key Files
+
+- `main.py`: Defines the FastAPI backend server configuration and all API endpoints.
+- `pyproject.toml`: Defines linting configuration, as well as `pytest` configuration options.
+- `requirements.txt`: Python package dependencies.
+- `db.sqlite3`: SQLite database. This won't exist until the database is initialized.
+- `alembic.ini`: Alembic configuration file.
+- `alembic/`
+    - `versions/`: Migrations for each database version. These allow the database to be rolled forwards or backwards to any version. Each version is a `.py` file.
+- `server/`:
+    - `db.py`: Setup a connection to the main database and create some sample data.
+    - `models.py`: Define all database tables as SQLModel classes. Additionally, defines schemas for data that will be sent and received from the frontend web server.
+    - `session_security.py`: Handle creation and decoding of session tokens.
+- `index.html`: This file currently contains all HTML content, except content that is dynamically generated. It also contains a great deal of JQuery code, responsible for reactively changing content on the webpage as the user interacts with it.
+- `frontend/`
+    - `images/`
+    - `css/`
+    - `js/`
+        - `CourseListPage.js`: Defines the CourseListPage class, which controls creating courses, deleting them, and retrieving them from the database.
+        - `CoursePostListPage.js`: Defines the CoursePostListPage class, which controls creating posts, approving them, and retrieving a set of them from the database.
+- `tests/`: Location of all unit tests.
+    - `test_db.py`: Simple unit tests for database models.
+    - `test_endpoints.py`: Unit and integration tests to ensure all of the API endpoints work correctly.
